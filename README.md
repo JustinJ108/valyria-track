@@ -18,27 +18,40 @@ on its own. Every link gets tested:
 | ⚠ Check | Works, but looks wrong (e.g. "GitHub" points to a non-GitHub site, or redirects to a different domain) |
 | ? Verify | The site blocks automated checks (LinkedIn, Cloudflare). Open it by hand |
 
+## How it stays up to date
+
+The page is cached by Vercel, so it always loads instantly:
+
+- Once the results are **over an hour old**, opening the page shows the old results right away,
+  re-checks in the background, and swaps the new results in when they're ready (about 15 seconds, no reload).
+- **Run check now** does the same on demand.
+- A **daily cron** (`vercel.json`, 13:00 UTC) refreshes it even if nobody visits.
+
 ## Run locally
 
 ```bash
 npm install
-npm run dev          # http://localhost:3000
+npm run dev          # http://localhost:3000 (always checks live; no caching in dev)
 npm run check        # print the report in the terminal
 ```
 
-Without `DATABASE_URL` the dashboard runs a live check (cached for 5 minutes) and skips history.
+To try the caching behaviour locally, use `npm run build && npm start`.
 
-## Deploy to Vercel + Neon
+## Deploy to Vercel
 
-1. Push this folder to a GitHub repo and import it in Vercel.
-2. In the Vercel project: **Storage → Create → Neon**. This sets `DATABASE_URL`.
-3. Add a `CRON_SECRET` env var (any random string).
-4. Create the tables once, using the connection string from Neon:
-   ```bash
-   DATABASE_URL="postgres://..." npm run db:init
-   ```
-5. Deploy. `vercel.json` runs a check every day at 13:00 UTC. Each run is saved,
-   which fills the "Progress over time" chart. The **Run check now** button runs one on demand.
+1. Import this repo at vercel.com/new and click **Deploy** with the default settings.
+2. Optional: add a `CRON_SECRET` env var (any random string) so only Vercel's cron can call `GET /api/check`.
+
+That's all. No database is needed.
+
+## Optional: Neon for history
+
+Connecting Neon adds a "Progress over time" chart and keeps a record of every check.
+
+1. In the Vercel project: **Storage → Create Database → Neon**, connect it to all environments.
+   This sets `DATABASE_URL`.
+2. Create the tables once: `DATABASE_URL="postgres://..." npm run db:init`
+3. Redeploy.
 
 ## Data model (Neon)
 

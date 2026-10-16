@@ -1,10 +1,12 @@
-import { getReport } from "@/lib/report";
+import { getReport, STALE_MS } from "@/lib/report";
 import { TEAM_FIELDS, PROJECT_FIELDS } from "@/lib/checker";
 import StatusCell, { Legend, STATUS_META } from "@/components/StatusCell";
-import RunCheckButton from "@/components/RunCheckButton";
+import LiveRefresh from "@/components/LiveRefresh";
 import HistoryChart from "@/components/HistoryChart";
 
-export const dynamic = "force-dynamic";
+// Serve the cached page instantly; rebuild it in the background once it is
+// over an hour old (must match STALE_MS in lib/report.js).
+export const revalidate = 3600;
 export const maxDuration = 60;
 
 const ISSUE_ORDER = { broken: 0, warn: 1, unverified: 2 };
@@ -149,7 +151,7 @@ export default async function Dashboard() {
             <a href={`https://github.com/${repo}/tree/${branch}`} target="_blank" rel="noopener noreferrer">{repo}@{sha || branch}</a>
           </span>
           <span className="spacer" />
-          <RunCheckButton />
+          <LiveRefresh checkedAt={report.checkedAt} staleMs={STALE_MS} />
         </div>
       </header>
 
@@ -188,26 +190,26 @@ export default async function Dashboard() {
           <IssueList report={report} />
         </section>
 
-        <div className="two-col">
+        <div className={stored ? "two-col" : undefined}>
           <section className="card">
             <div className="card-head"><h2>Most-neglected fields</h2><span className="hint">How many entries have each field</span></div>
-            <div className="card-body">
-              <h3 style={{ fontSize: 13, color: "var(--ink-2)", margin: "0 0 10px" }}>Team</h3>
-              <FieldBars summary={s.team} fields={TEAM_FIELDS} />
-              <h3 style={{ fontSize: 13, color: "var(--ink-2)", margin: "20px 0 10px" }}>Projects</h3>
-              <FieldBars summary={s.projects} fields={PROJECT_FIELDS} />
+            <div className={`card-body ${stored ? "" : "bars-pair"}`}>
+              <div>
+                <h3 className="bars-title">Team</h3>
+                <FieldBars summary={s.team} fields={TEAM_FIELDS} />
+              </div>
+              <div>
+                <h3 className="bars-title">Projects</h3>
+                <FieldBars summary={s.projects} fields={PROJECT_FIELDS} />
+              </div>
             </div>
           </section>
-          <section className="card">
-            <div className="card-head"><h2>Progress over time</h2><span className="hint">Completeness after each check</span></div>
-            <div className="card-body">
-              {stored ? (
-                <HistoryChart runs={history} />
-              ) : (
-                <p className="empty">Connect a Neon database (<code>DATABASE_URL</code>) to keep a history of every check.</p>
-              )}
-            </div>
-          </section>
+          {stored && (
+            <section className="card">
+              <div className="card-head"><h2>Progress over time</h2><span className="hint">Completeness after each check</span></div>
+              <div className="card-body"><HistoryChart runs={history} /></div>
+            </section>
+          )}
         </div>
 
         <p className="foot">
